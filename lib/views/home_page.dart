@@ -22,7 +22,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    readData().then((value) => setState(() => todoList = json.decode(value!)));
+    readData().then((value) {
+      if (value != null) {
+        List decodedList = json.decode(value);
+        setState(() =>
+            todoList = decodedList.whereType<Map<String, dynamic>>().toList());
+      }
+    });
   }
 
   Future<String?> readData() async {
@@ -36,7 +42,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<File> saveData() async {
-    String data = json.encode(todoList);
+    String data =
+        json.encode(todoList.where((element) => element != null).toList());
     final file = await openFile();
 
     return file.writeAsString(data);
@@ -52,10 +59,11 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(Duration(seconds: 1));
     setState(() {
       todoList.sort((a, b) {
+        if (a == null || b == null) {
+          return 0;
+        }
         if (a['done'] && !b['done']) return 1;
-
         if (!a['done'] && b['done']) return -1;
-
         return 0;
       });
 
@@ -99,7 +107,9 @@ class _HomePageState extends State<HomePage> {
 
     task.then((value) {
       setState(() {
-        todoList.add(value!);
+        if (value != null) {
+          todoList.add(value);
+        }
 
         todoController.clear();
 
@@ -119,10 +129,10 @@ class _HomePageState extends State<HomePage> {
             ScaffoldMessenger.of(context).removeCurrentSnackBar(),
       );
     } else {
-      Map<String, dynamic> newTask = {};
-
-      newTask['title'] = todoController.text;
-      newTask['done'] = false;
+      Map<String, dynamic> newTask = {
+        'title': todoController.text,
+        'done': false,
+      };
 
       Navigator.pop(context, newTask);
     }
@@ -135,6 +145,7 @@ class _HomePageState extends State<HomePage> {
           itemCount: todoList.length,
           itemBuilder: (context, index) {
             final item = todoList[index];
+            debugPrint(item.toString());
 
             return buildTask(context, index, item);
           },
@@ -154,23 +165,29 @@ class _HomePageState extends State<HomePage> {
         onDismissed: (dismissed) => dismissItem(dismissed, item, index),
       );
 
-  Widget buildItemWidget(dynamic item) => CheckboxListTile(
-        value: item['done'],
-        secondary: CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor,
-          child: Icon(
-            item['done'] ? Icons.check : Icons.error,
-            color: Colors.white,
-          ),
-        ),
-        title: Text(item['title']),
-        onChanged: (value) => setState(() {
-          item['done'] = value;
+  Widget buildItemWidget(dynamic item) {
+    if (item == null) {
+      return Container();
+    }
 
-          saveData();
-          refreshList();
-        }),
-      );
+    return CheckboxListTile(
+      value: item['done'],
+      secondary: CircleAvatar(
+        backgroundColor: Theme.of(context).primaryColor,
+        child: Icon(
+          item['done'] ? Icons.check : Icons.error,
+          color: Colors.white,
+        ),
+      ),
+      title: Text(item['title']),
+      onChanged: (value) => setState(() {
+        item['done'] = value;
+
+        saveData();
+        refreshList();
+      }),
+    );
+  }
 
   void dismissItem(DismissDirection dismissed, dynamic item, int index) {
     setState(() {
